@@ -93,11 +93,17 @@ namespace RT
 		uint32_t primitive_idx;
 		RT_Vec2 barycentrics;
 		float hit_distance;
+#if RT_DISPATCH_RAYS
+		uint32_t a, b;
+#endif
 	};
 
 	struct OcclusionRayPayload
 	{
 		uint32_t visible;
+#if RT_DISPATCH_RAYS
+		uint32_t b, c, d;
+#endif
 	};
 
 	struct ShaderRecord

@@ -2399,6 +2399,13 @@ namespace
 	}
 }
 
+void GetViewportRect(HWND hWnd, RECT *pRect)
+{
+	(void)hWnd;
+	pRect->left = pRect->top = 0;
+	pRect->right = (int)g_d3d_raster.viewport.Width; pRect->bottom = (int)g_d3d_raster.viewport.Height;
+}
+
 BufferAllocation RT::AllocateFromUploadBuffer(FrameData *frame, size_t size, size_t align)
 {
 	BufferAllocation result = {};
@@ -2432,7 +2439,7 @@ void RenderBackend::Init(const RT_RendererInitParams* render_init_params)
 	g_d3d.amd_fsr2_mode = tweak_vars.amd_fsr2_mode;
 
 	RECT client_rect;
-	GetClientRect(g_d3d.hWnd, &client_rect);
+	GetViewportRect(g_d3d.hWnd, &client_rect);
 
 	g_d3d.output_width = client_rect.right - client_rect.left;
 	g_d3d.output_height = client_rect.bottom - client_rect.top;
@@ -3352,7 +3359,7 @@ void RenderBackend::SwapBuffers()
 	g_d3d.mesh_tracker.PruneOldEntries(g_d3d.frame_index);
 
 	RECT client_rect;
-	GetClientRect(g_d3d.hWnd, &client_rect);
+	GetViewportRect(g_d3d.hWnd, &client_rect);
 
 	if (client_rect.right && client_rect.bottom &&
 		((int)g_d3d.output_width  != client_rect.right ||

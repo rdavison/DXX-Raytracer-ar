@@ -159,6 +159,23 @@ int gr_check_mode(u_int32_t mode)
 	}
 }
 
+SDL_Surface *SetVideoMode(int w, int h)
+{
+	int flags = sdl_video_flags;
+	int winw = w, winh = h;
+
+	if (flags & SDL_FULLSCREEN) {
+		int sw = GetSystemMetrics(SM_CXSCREEN);
+		int sh = GetSystemMetrics(SM_CYSCREEN);
+		if (w * sh / sw == h) { // same aspect ratio
+			flags |= SDL_NOFRAME;
+			winw = sw;
+			winh = sh;
+		}
+	}
+	return SDL_SetVideoMode(winw, winh, 32, flags);
+}
+
 int gr_set_mode(u_int32_t mode)
 {
 	unsigned int w, h;
@@ -197,7 +214,7 @@ int gr_set_mode(u_int32_t mode)
 	}
 
 	//Set the video or resize it. The renderer handles the resize event.
-	SDL_SetVideoMode(w, h, 32, sdl_video_flags);
+	SetVideoMode(w, h);
 	RT_RasterSetViewport(0.0f, 0.0f, w, h);
 	gamefont_choose_game_font(w, h);
 
@@ -371,7 +388,7 @@ int gr_toggle_fullscreen(void)
 	else
 		sdl_video_flags |= SDL_FULLSCREEN;
 
-	if (!SDL_SetVideoMode(SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, sdl_video_flags))
+	if (!SetVideoMode(SM_W(Game_screen_mode), SM_H(Game_screen_mode)))
 	{
 		// Setting video mode went wrong
 	}
@@ -473,6 +490,7 @@ int gr_init(int mode)
 
 	//Init video here, sadly it's wrong but it will be resized in gr_set_mode.
 	SDL_Surface* surf = SDL_SetVideoMode(w, h, 32, SDL_DOUBLEBUF | SDL_HWSURFACE | SDL_ANYFORMAT);
+	RT_RasterSetViewport(0.0f, 0.0f, w, h);
 	
 	SDL_EventState(SDL_IGNORE, NULL);
 	RT_RendererInitParams initParams;

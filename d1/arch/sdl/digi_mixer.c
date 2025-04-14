@@ -100,6 +100,11 @@ void digi_mixer_free_channel(int channel_num)
 	channels[channel_num] = 0;
 }
 
+#ifdef USE_RESAMPLER
+#include "resample.h"
+struct resample *resampler;
+#endif
+
 /*
  * Play-time conversion. Performs output conversion only once per sound effect used.
  * Once the sound sample has been converted, it is cached in SoundChunks[]
@@ -116,6 +121,34 @@ void mixdigi_convert_sound(int i)
 
 	if (data)
 	{
+		if (dlen >= 2 && data[0] == 0 && data[1] == 0) {
+			dlen -= 2;
+			data += 2;
+		}
+#ifdef USE_RESAMPLER
+		if (!resampler)
+			resampler = resample_init(freq, digi_sample_rate);
+
+		int outlen = dlen * (digi_sample_rate + freq - 1) / freq;
+		Sint16 *srcbuf = malloc(dlen * sizeof(Sint16));
+		Sint16 *dstbuf = malloc(outlen * sizeof(Sint16));
+		Sint16 *out = malloc(outlen * sizeof(Sint16) * 2);
+
+		for (int i = 0; i < dlen; i++)
+			srcbuf[i] = (data[i] - 128) * 232;
+		resample_process(resampler, dlen, srcbuf, outlen, dstbuf);
+
+		for (int i = 0; i < outlen; i++)
+			out[i * 2] = out[i * 2 + 1] = dstbuf[i];
+
+		free(dstbuf);
+		free(srcbuf);
+
+		SoundChunks[i].abuf = out;
+		SoundChunks[i].alen = outlen * sizeof(Sint16) * 2;
+		SoundChunks[i].allocated = 1;
+		SoundChunks[i].volume = 128; // Max volume = 128
+#else
 		if (MIX_DIGI_DEBUG)
 			RT_LOGF(RT_LOGSERVERITY_INFO, "converting %d (%d)\n", i, dlen);
 		SDL_BuildAudioCVT(&cvt, AUDIO_U8, 1, freq, MIX_OUTPUT_FORMAT, MIX_OUTPUT_CHANNELS, digi_sample_rate);
@@ -130,6 +163,7 @@ void mixdigi_convert_sound(int i)
 		SoundChunks[i].alen = dlen * cvt.len_mult;
 		SoundChunks[i].allocated = 1;
 		SoundChunks[i].volume = 128; // Max volume = 128
+#endif
 	}
 }
 

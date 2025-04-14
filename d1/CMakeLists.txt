@@ -10,6 +10,7 @@ NO_ASM
 WINDOWS_IGNORE_PACKING_MISMATCH 
 USE_TRACKER
 USE_SDLMIXER
+USE_RESAMPLER
 USE_UDP)
 
 if(${GRAPHICS_API} STREQUAL "DirectX12")
@@ -222,6 +223,7 @@ physfs-static
 sdlmain
 sdl
 SDL_mixer_master
+libfresample
 dxguid
 Winmm
 Ws2_32

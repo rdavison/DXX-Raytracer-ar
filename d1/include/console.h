@@ -32,5 +32,13 @@ typedef struct console_buffer
 void con_init(void);
 void con_showup(void);
 
+#include "error.h"
+static inline void con_printf(int lvl, const char *msg, ...) {
+	va_list vp;
+	va_start(vp, msg);
+	RT_LogV(lvl == CON_CRITICAL ? RT_LOGSERVERITY_HIGH : lvl == CON_URGENT ? RT_LOGSERVERITY_MEDIUM : lvl == CON_NORMAL ? RT_LOGSERVERITY_INFO : lvl == CON_VERBOSE ? RT_LOGSERVERITY_MINOR : RT_LOGSERVERITY_MINOR, msg, vp);
+	va_end(vp);
+}
+
 #endif /* _CONSOLE_H_ */
 

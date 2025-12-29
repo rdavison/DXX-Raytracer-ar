@@ -72,6 +72,7 @@ void piggy_read_bitmap_data(grs_bitmap * bmp);
 void piggy_read_sound_data(digi_sound *snd);
 
 void piggy_get_bitmap_name( int i, char * name );
+void piggy_get_sound_name( int i, char * name );
 
 void piggy_load_level_data();
 

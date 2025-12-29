@@ -24,6 +24,7 @@
 #include "console.h"
 #include "config.h"
 #include "args.h"
+#include "physfsrwops.h"
 #include "logger.h"
 
 #include "fix.h"
@@ -105,6 +106,26 @@ void digi_mixer_free_channel(int channel_num)
 struct resample *resampler;
 #endif
 
+Mix_Chunk *load_sound(const char *filename)
+{
+	PHYSFS_File *f;
+	SDL_RWops *rw;
+	Mix_Chunk *sound;
+
+	if (!(f = PHYSFSX_openReadBuffered(filename)))
+		return NULL;
+	if (!(rw = PHYSFSRWOPS_makeRWops(f))) {
+		PHYSFS_close(f);
+		return NULL;
+	}
+
+	sound = Mix_LoadWAV_RW(rw, 0);
+
+	SDL_RWclose(rw);
+
+	return sound;
+}
+
 /*
  * Play-time conversion. Performs output conversion only once per sound effect used.
  * Once the sound sample has been converted, it is cached in SoundChunks[]
@@ -116,8 +137,18 @@ void mixdigi_convert_sound(int i)
 	Uint32 dlen = GameSounds[i].length;
 	int freq = GameSounds[i].freq;
 	//int bits = GameSounds[i].bits;
+	Mix_Chunk *sound;
+	char name[32];
 
 	if (SoundChunks[i].abuf) return; //proceed only if not converted yet
+
+	piggy_get_sound_name(i, name);
+	strcat(name, ".wav");
+	if ((sound = load_sound(name))) {
+		SoundChunks[i] = *sound;
+		free(sound);
+		return;
+	}
 
 	if (data)
 	{

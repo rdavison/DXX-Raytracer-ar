@@ -156,6 +156,12 @@ void piggy_get_bitmap_name( int i, char * name )
 	name[12] = 0;
 }
 
+void piggy_get_sound_name( int i, char * name )
+{
+	strncpy( name, AllSounds[i].name, 12 );
+	name[12] = 0;
+}
+
 bitmap_index piggy_register_bitmap( grs_bitmap * bmp, char * name, int in_file )
 {
 	bitmap_index temp;

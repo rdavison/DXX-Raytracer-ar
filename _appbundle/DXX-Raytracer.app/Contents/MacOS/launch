@@ -10,7 +10,14 @@ set -euo pipefail
 # Get the absolute path to this .app bundle, even if launched from Finder
 BUNDLE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 GAME_DIR="$BUNDLE_DIR/Resources/game"
-WINE="/usr/local/bin/wine64"
+# Homebrew installs to /opt/homebrew on Apple Silicon, /usr/local on Intel
+if [ -x "/opt/homebrew/bin/wine64" ]; then
+    WINE="/opt/homebrew/bin/wine64"
+elif [ -x "/usr/local/bin/wine64" ]; then
+    WINE="/usr/local/bin/wine64"
+else
+    WINE=""
+fi
 SUPPORT_DIR="$HOME/Library/Application Support/DXX-Raytracer"
 WINEPREFIX="$SUPPORT_DIR/prefix"
 LOG_FILE="$SUPPORT_DIR/launch.log"
@@ -39,8 +46,9 @@ show_info() {
 # --- Check prerequisites ---
 
 # 1. Check GPTK / wine64
-echo "Checking for wine64 at $WINE..."
-if [ ! -x "$WINE" ]; then
+echo "Checking for wine64..."
+if [ -z "$WINE" ]; then
+    echo "wine64 not found at /opt/homebrew/bin or /usr/local/bin"
     show_error "Game Porting Toolkit not found" \
         "DXX-Raytracer requires Apple's Game Porting Toolkit (GPTK).
 
@@ -52,6 +60,7 @@ if [ ! -x "$WINE" ]; then
 
 Then try launching again."
 fi
+echo "Found wine64 at $WINE"
 
 # 2. Check game files exist in bundle
 echo "Checking game files in $GAME_DIR..."

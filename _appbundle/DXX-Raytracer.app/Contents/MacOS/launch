@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# DXX-Raytracer self-contained launcher via Game Porting Toolkit
+# The .app bundle contains all game files in Contents/Resources/game/
+# Only requirement: GPTK 3.0 installed via Homebrew
+
+set -euo pipefail
+
+# --- Resolve paths ---
+# Get the absolute path to this .app bundle, even if launched from Finder
+BUNDLE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+GAME_DIR="$BUNDLE_DIR/Resources/game"
+WINE="/usr/local/bin/wine64"
+SUPPORT_DIR="$HOME/Library/Application Support/DXX-Raytracer"
+WINEPREFIX="$SUPPORT_DIR/prefix"
+LOG_FILE="$SUPPORT_DIR/launch.log"
+
+# --- Logging ---
+mkdir -p "$SUPPORT_DIR"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+echo "=========================================="
+echo "DXX-Raytracer launch: $(date)"
+echo "macOS $(sw_vers -productVersion) ($(uname -m))"
+echo "Bundle: $BUNDLE_DIR"
+echo "=========================================="
+
+show_error() {
+    echo "ERROR: $1 — $2" >&2
+    osascript -e "display alert \"$1\" message \"$2\" as critical" 2>/dev/null
+    exit 1
+}
+
+show_info() {
+    echo "INFO: $1 — $2"
+    osascript -e "display alert \"$1\" message \"$2\"" 2>/dev/null
+}
+
+# --- Check prerequisites ---
+
+# 1. Check GPTK / wine64
+echo "Checking for wine64 at $WINE..."
+if [ ! -x "$WINE" ]; then
+    show_error "Game Porting Toolkit not found" \
+        "DXX-Raytracer requires Apple's Game Porting Toolkit (GPTK).
+
+1. Install Homebrew (if you don't have it):
+  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"
+
+2. Install Game Porting Toolkit:
+  brew install --cask gcenx/wine/game-porting-toolkit
+
+Then try launching again."
+fi
+
+# 2. Check game files exist in bundle
+echo "Checking game files in $GAME_DIR..."
+if [ ! -f "$GAME_DIR/descent1.exe" ]; then
+    show_error "Game files missing" \
+        "descent1.exe not found in the app bundle.
+
+Expected at:
+  $GAME_DIR/descent1.exe
+
+The app bundle may be corrupted. Re-download it."
+fi
+
+if [ ! -f "$GAME_DIR/descent.hog" ]; then
+    show_error "Descent game data required" \
+        "You need descent.hog and descent.pig from a copy of Descent (1995).
+
+To add them:
+1. Right-click DXX-Raytracer.app and choose Show Package Contents
+2. Navigate to Contents/Resources/game/
+3. Copy descent.hog and descent.pig there
+
+Then try launching again."
+fi
+
+# --- Wine prefix setup ---
+
+# Create prefix on first launch
+if [ ! -d "$WINEPREFIX" ]; then
+    mkdir -p "$SUPPORT_DIR"
+
+    show_info "First Launch Setup" \
+        "Creating Wine prefix for DXX-Raytracer. This takes 10-30 seconds and only happens once."
+
+    export WINEPREFIX
+    # Suppress Mono/Gecko install prompts - we don't need them
+    export WINEDLLOVERRIDES="mscoree=d;mshtml=d"
+    echo "Initializing Wine prefix at $WINEPREFIX..."
+    "$WINE" wineboot --init || true
+
+    # Wait for wineserver to finish
+    WINESERVER="$(dirname "$WINE")/wineserver"
+    if [ -x "$WINESERVER" ]; then
+        echo "Waiting for wineserver to finish..."
+        "$WINESERVER" --wait || true
+    else
+        sleep 5
+    fi
+fi
+
+# --- Convert macOS path to Wine Z: drive path ---
+# Wine maps Z: to /, so /Users/foo/bar becomes Z:\Users\foo\bar
+WINE_GAME_DIR="Z:$(printf '%s' "$GAME_DIR" | tr '/' '\\')"
+WINE_GAME_EXE="${WINE_GAME_DIR}\\descent1.exe"
+
+# --- Environment ---
+export WINEPREFIX
+export WINEESYNC=1
+export D3DM_SUPPORT_DXR=1
+export ROSETTA_ADVERTISE_AVX=1
+
+# --- Launch ---
+# Use /wait so the .app stays active in the Dock while the game runs
+echo "Launching: $WINE start /wait /d $WINE_GAME_DIR $WINE_GAME_EXE"
+echo "Environment: WINEPREFIX=$WINEPREFIX WINEESYNC=$WINEESYNC D3DM_SUPPORT_DXR=$D3DM_SUPPORT_DXR"
+"$WINE" start /wait /d "$WINE_GAME_DIR" "$WINE_GAME_EXE" && EXIT_CODE=0 || EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "Wine exited with code $EXIT_CODE"
+    show_error "DXX-Raytracer failed to launch" \
+        "Wine exited with error code $EXIT_CODE.
+
+Check the log file for details:
+  $LOG_FILE
+
+Common fixes:
+- Reinstall Game Porting Toolkit:
+  brew reinstall --cask gcenx/wine/game-porting-toolkit
+- Delete the Wine prefix and retry:
+  rm -rf \"$SUPPORT_DIR/prefix\""
+else
+    echo "Game exited normally."
+fi
